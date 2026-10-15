@@ -1,0 +1,265 @@
+@import 'tailwindcss';
+
+/* Dark mode is class-based so the user's choice (not just the OS) wins. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens: neo-brutalist "Signal" system (docs/03-ui-spec.md).
+ * Ink on mint grid paper, thick borders, hard offset shadows. Components only
+ * use semantic roles (bg-surface, text-fg-muted, border-ink, shadow-brut…).
+ * Text pairings are checked at ≥ 4.5:1 and UI borders at ≥ 3:1 in both themes.
+ */
+:root {
+  color-scheme: light;
+  --bg: #cfe8d6; /* mint paper */
+  --grid-line: rgb(18 18 16 / 0.07);
+  --surface: #ffffff;
+  --surface-2: #f4faf6;
+  --surface-3: #e4f2e8;
+  --fg: #121210; /* ink */
+  --fg-muted: #3b4a40;
+  --ink: #121210; /* borders + hard shadows */
+  --border: rgb(18 18 16 / 0.18); /* hairline dividers */
+  --border-strong: #121210;
+  --primary: #1b6b2e; /* white text 6.6:1 */
+  --primary-hover: #145423;
+  --primary-fg: #ffffff;
+  --primary-soft: #cfe8d6;
+  --primary-soft-fg: #121210;
+  --accent: #2e8c42; /* decorative green (pings, bars) */
+  --amber: #e8a030;
+  --focus: #1b6b2e;
+  --news: #0b5cad;
+  --film: #9a4a00;
+  --social: #7a2e9e;
+  --news-soft: #cde6ff;
+  --film-soft: #ffe1a8;
+  --social-soft: #ecd9ff;
+  --success: #1b6b2e;
+  --danger: #b03030;
+  --danger-soft: #fde8e8;
+  --warning-soft: #fff1d6;
+  --warning-fg: #7a4400;
+  --bar: #121210; /* control bar */
+  --bar-fg: #f4faf6;
+}
+
+.dark {
+  color-scheme: dark;
+  --bg: #0e1310;
+  --grid-line: rgb(207 232 214 / 0.05);
+  --surface: #161d18;
+  --surface-2: #1d2620;
+  --surface-3: #24302a;
+  --fg: #eef6ef;
+  --fg-muted: #a9bdae;
+  --ink: #cfe8d6; /* mint borders + shadows on dark */
+  --border: rgb(207 232 214 / 0.16);
+  --border-strong: #cfe8d6;
+  --primary: #6bd08a;
+  --primary-hover: #8fe0a7;
+  --primary-fg: #0e1310;
+  --primary-soft: #1f3a27;
+  --primary-soft-fg: #dff3e5;
+  --accent: #6bd08a;
+  --amber: #f0b54f;
+  --focus: #8fe0a7;
+  --news: #7cc4ff;
+  --film: #ffc46b;
+  --social: #d9a6ff;
+  --news-soft: #10304f;
+  --film-soft: #3d2a0a;
+  --social-soft: #2f1a40;
+  --success: #6bd08a;
+  --danger: #ff8a8a;
+  --danger-soft: #3a1515;
+  --warning-soft: #33260c;
+  --warning-fg: #ffd58a;
+  --bar: #050806;
+  --bar-fg: #dff3e5;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-ink: var(--ink);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-fg: var(--primary-fg);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-soft-fg: var(--primary-soft-fg);
+  --color-accent: var(--accent);
+  --color-amber: var(--amber);
+  --color-focus: var(--focus);
+  --color-news: var(--news);
+  --color-film: var(--film);
+  --color-social: var(--social);
+  --color-news-soft: var(--news-soft);
+  --color-film-soft: var(--film-soft);
+  --color-social-soft: var(--social-soft);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-fg: var(--warning-fg);
+  --color-bar: var(--bar);
+  --color-bar-fg: var(--bar-fg);
+
+  /* Devanagari fallbacks cover Hindi, which the brand fonts don't include. */
+  --font-sans: var(--ff-body), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'Nirmala UI', 'Noto Sans Devanagari', sans-serif;
+  --font-display: var(--ff-display), var(--ff-body), ui-sans-serif, system-ui, 'Nirmala UI', 'Noto Sans Devanagari', sans-serif;
+  --font-mono: var(--ff-mono), ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  --radius-control: 0.125rem;
+  --radius-card: 0;
+
+  /* Hard offset shadows: elevation by position, not blur. */
+  --shadow-brut-sm: 3px 3px 0 var(--ink);
+  --shadow-brut: 4px 4px 0 var(--ink);
+  --shadow-brut-lg: 6px 6px 0 var(--ink);
+  --shadow-raised: 6px 6px 0 var(--ink);
+  --shadow-overlay: 8px 8px 0 var(--ink);
+
+  --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-shimmer: shimmer 1.4s linear infinite;
+  --animate-spin-slow: spin 0.9s linear infinite;
+  --animate-ticker: ticker 60s linear infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes ticker {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-padding-top: 8rem; /* keep focused elements clear of the sticky header */
+  }
+
+  body {
+    @apply bg-bg text-fg font-sans antialiased;
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 26px 26px;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
+    letter-spacing: -0.01em;
+  }
+
+  /* One consistent, highly visible focus indicator for keyboard users. */
+  :focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: #ffffff;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--bg);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--ink);
+  }
+}
+
+@layer components {
+  /* Neo-brutalist surfaces. */
+  .brut {
+    border: 3px solid var(--ink);
+    box-shadow: var(--shadow-brut);
+  }
+  .brut-sm {
+    border: 2px solid var(--ink);
+    box-shadow: var(--shadow-brut-sm);
+  }
+  .brut-lg {
+    border: 3px solid var(--ink);
+    box-shadow: var(--shadow-brut-lg);
+  }
+
+  /* Pressable: lifts on hover, presses flat on click. */
+  .press {
+    transition:
+      transform 0.15s var(--ease-out-soft),
+      box-shadow 0.15s var(--ease-out-soft),
+      background-color 0.15s ease;
+  }
+  .press:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-brut-lg);
+  }
+  .press:active {
+    transform: translate(3px, 3px);
+    box-shadow: 0 0 0 var(--ink);
+  }
+
+  /* Uppercase mono label: sources, statuses, metadata. */
+  .tag {
+    @apply inline-flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase leading-none;
+    padding: 4px 7px;
+    border: 2px solid var(--ink);
+    letter-spacing: 0.06em;
+  }
+
+  /* Rubber-stamp status (LIVE / DEMO). */
+  .stamp {
+    @apply inline-flex items-center gap-1 font-display text-[11px] font-black uppercase leading-none;
+    padding: 4px 8px;
+    border: 2px solid currentColor;
+    letter-spacing: 0.12em;
+    transform: rotate(-2deg);
+  }
+
+  .skeleton {
+    background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 37%, var(--surface-2) 63%);
+    background-size: 400% 100%;
+    @apply animate-shimmer;
+  }
+}
+
+/* Respect reduced-motion: keep opacity fades, drop movement and loops. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .press:hover {
+    transform: none;
+  }
+}

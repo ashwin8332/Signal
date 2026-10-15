@@ -1,0 +1,902 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>APPROVA // Fintech Operations Dashboard Widget & Decision Audit</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Three.js CDN for 3D Elements -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Canvas Confetti for Celebration on Approval -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- Tabler Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont/tabler-icons.min.css">
+  <!-- GSAP Animation Engine -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+  
+  <!-- Google Fonts: Archivo, Hanken Grotesk, Space Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Hanken+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    body { font-family: 'Hanken Grotesk', sans-serif; background:#CFE8D6; color:#121210; margin:0; }
+    .font-display { font-family: 'Archivo', sans-serif; letter-spacing:-0.01em; }
+    .font-mono { font-family: 'Space Mono', monospace; font-variant-numeric: tabular-nums; }
+    
+    /* Neo-Brutalist Design Tokens */
+    .brut { border: 3px solid #121210; box-shadow: 4px 4px 0 #121210; }
+    .brut-lg { border: 3px solid #121210; box-shadow: 6px 6px 0 #121210; }
+    .brut-sm { border: 2px solid #121210; box-shadow: 3px 3px 0 #121210; }
+    .brut-card { border: 3px solid #121210; box-shadow: 4px 4px 0 #121210; background:#FFFFFF; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+    
+    .btn-press { transition: all 0.15s ease; cursor: pointer; }
+    .btn-press:hover { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 #121210; }
+    .btn-press:active { transform: translate(4px,4px); box-shadow: 0 0 0 #121210 !important; }
+    
+    .grid-paper { background-image: linear-gradient(rgba(18,18,16,0.07) 1px,transparent 1px),linear-gradient(90deg,rgba(18,18,16,0.07) 1px,transparent 1px); background-size: 26px 26px; }
+    
+    /* Stamp Styles */
+    .stamp {
+      font-family: 'Archivo', sans-serif;
+      font-weight: 700;
+      border: 2px solid currentColor;
+      padding: 4px 10px;
+      letter-spacing: 0.12em;
+      display: inline-block;
+      border-radius: 4px;
+      position: relative;
+    }
+    
+    .widget-big-stamp {
+      position: absolute;
+      font-family: 'Archivo', sans-serif;
+      font-weight: 900;
+      font-size: 58px;
+      letter-spacing: 0.18em;
+      border: 8px solid currentColor;
+      padding: 12px 36px;
+      border-radius: 6px;
+      pointer-events: none;
+      z-index: 50;
+      text-transform: uppercase;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+      background: rgba(255, 255, 255, 0.95);
+    }
+    
+    .tag { display:inline-flex; align-items:center; gap:5px; padding:3px 8px; border:2px solid #121210; font-weight:700; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; }
+    .chain-node { width:28px; height:28px; border:2px solid #121210; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; }
+    .chain-line { width:16px; height:3px; background:#121210; }
+    
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height:6px; }
+    ::-webkit-scrollbar-track { background: #CFE8D6; }
+    ::-webkit-scrollbar-thumb { background: #121210; border-radius: 0px; }
+  </style>
+</head>
+<body class="min-h-screen text-[#121210] selection:bg-[#2E8C42] selection:text-white">
+
+<!-- ========================================================
+     MODAL 1: DECISION AUDIT HISTORY MODAL (NEW FEATURE!)
+     ======================================================== -->
+<div id="history-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden backdrop-blur-xs">
+  <div class="brut-lg bg-white max-w-3xl w-full p-6 relative max-h-[90vh] flex flex-col">
+    <!-- Modal Header -->
+    <div class="flex items-center justify-between border-b-[3px] border-[#121210] pb-3 mb-4">
+      <div>
+        <div class="font-display font-black text-xl flex items-center gap-2">
+          <i class="ti ti-archive text-[#2E8C42]"></i> Approval & Rejection Audit Records
+        </div>
+        <div class="text-[11px] font-mono opacity-60">Verified decisions with auditor signatures & policy rationales</div>
+      </div>
+      <button onclick="closeHistoryModal()" class="font-bold text-2xl hover:text-red-500">✕</button>
+    </div>
+
+    <!-- Filter Buttons inside Audit History -->
+    <div class="flex items-center gap-2 mb-4 font-mono text-xs">
+      <button onclick="filterDecisions('ALL', this)" class="brut-sm bg-[#121210] text-white px-3 py-1 font-bold hist-tab">ALL (<span id="hist-all-count">4</span>)</button>
+      <button onclick="filterDecisions('APPROVED', this)" class="brut-sm bg-white px-3 py-1 font-bold hist-tab hover:bg-slate-100">APPROVED</button>
+      <button onclick="filterDecisions('REJECTED', this)" class="brut-sm bg-white px-3 py-1 font-bold hist-tab hover:bg-slate-100">REJECTED</button>
+      <button onclick="filterDecisions('NEEDS DETAIL', this)" class="brut-sm bg-white px-3 py-1 font-bold hist-tab hover:bg-slate-100">NEEDS DETAIL</button>
+    </div>
+
+    <!-- Scrollable Decisions Cards List -->
+    <div id="history-cards-container" class="space-y-3 overflow-y-auto pr-1 flex-1">
+      <!-- Injected via JavaScript -->
+    </div>
+
+    <!-- Footer export info -->
+    <div class="mt-4 pt-3 border-t-2 border-[#121210]/20 flex items-center justify-between text-xs font-mono">
+      <span class="opacity-60">Immutable SHA-256 Chained Log</span>
+      <button onclick="alert('Exporting full audit trail CSV (2,481 records)...')" class="font-bold underline hover:text-[#2E8C42]">Export CSV →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================
+     MODAL 2: REJECTION / AUDIT FEEDBACK REASON
+     ======================================================== -->
+<div id="decision-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden backdrop-blur-xs">
+  <div class="brut bg-white max-w-md w-full p-6 relative">
+    <div class="flex items-center justify-between border-b-2 border-[#121210] pb-3 mb-4">
+      <div class="font-display font-extrabold text-lg flex items-center gap-2" id="modal-title">
+        <i class="ti ti-alert-triangle text-[#C03A3A]"></i> Audit Feedback Required
+      </div>
+      <button onclick="closeModal()" class="font-bold text-lg hover:text-red-500">✕</button>
+    </div>
+    
+    <p class="text-xs font-mono opacity-70 mb-3">Select or type audit rationale before signing decision to immutable log:</p>
+    
+    <!-- Quick Tag Reasons -->
+    <div class="flex flex-wrap gap-1.5 mb-3">
+      <button onclick="appendReason('Missing 3-Quote Proof')" class="brut-sm bg-white px-2 py-1 text-[11px] font-mono hover:bg-[#CFE8D6]"># Missing Quotes</button>
+      <button onclick="appendReason('Exceeds Allocated CapEx')" class="brut-sm bg-white px-2 py-1 text-[11px] font-mono hover:bg-[#CFE8D6]"># Over Budget</button>
+      <button onclick="appendReason('Duplicate Invoice Entry')" class="brut-sm bg-white px-2 py-1 text-[11px] font-mono hover:bg-[#CFE8D6]"># Duplicate</button>
+      <button onclick="appendReason('KYC Verification Expired')" class="brut-sm bg-white px-2 py-1 text-[11px] font-mono hover:bg-[#CFE8D6]"># Vendor KYC</button>
+    </div>
+
+    <textarea id="modal-input" class="w-full border-2 border-[#121210] p-2 text-xs font-mono outline-none h-20 mb-4 bg-slate-50" placeholder="Type audit rationale..."></textarea>
+
+    <div class="flex items-center justify-end gap-2">
+      <button onclick="closeModal()" class="brut-sm bg-white px-4 py-2 font-display font-bold text-xs btn-press">Cancel</button>
+      <button onclick="confirmModalAction()" class="brut-sm bg-[#121210] text-white px-4 py-2 font-display font-bold text-xs btn-press" id="modal-confirm-btn">Confirm Decision</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================
+     MODAL 3: LINE ITEMS DRAWER
+     ======================================================== -->
+<div id="items-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden backdrop-blur-xs">
+  <div class="brut-lg bg-white max-w-2xl w-full p-6 relative">
+    <div class="flex items-center justify-between border-b-[3px] border-[#121210] pb-3 mb-4">
+      <div>
+        <div class="font-display font-black text-xl" id="items-modal-title">Line-Item Breakdown</div>
+        <div class="text-[11px] font-mono opacity-60" id="items-modal-subtitle">PO-2025-0418 · Verified against vendor quote</div>
+      </div>
+      <button onclick="closeItemsModal()" class="font-bold text-xl hover:text-red-500">✕</button>
+    </div>
+
+    <div class="overflow-x-auto max-h-72 overflow-y-auto mb-4 border-2 border-[#121210]">
+      <table class="w-full font-mono text-xs">
+        <thead class="bg-[#CFE8D6] border-b-2 border-[#121210]">
+          <tr>
+            <th class="text-left p-2.5 font-bold">DESCRIPTION</th>
+            <th class="text-right p-2.5 font-bold w-16">QTY</th>
+            <th class="text-right p-2.5 font-bold w-24">UNIT PRICE</th>
+            <th class="text-right p-2.5 font-bold w-28">AMOUNT</th>
+          </tr>
+        </thead>
+        <tbody id="items-modal-body"></tbody>
+      </table>
+    </div>
+
+    <div class="flex items-center justify-between font-mono text-xs pt-2 border-t-2 border-[#121210]/20">
+      <span class="opacity-60">Verified GL: 4420-OPS-EU</span>
+      <div class="text-right">
+        <span class="opacity-60 text-[10px]">TOTAL VALUE:</span>
+        <span class="font-black text-base ml-1" id="items-modal-total">$48,920.00</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOP CONTROL HEADER -->
+<div class="bg-[#121210] text-white px-6 py-2.5 flex items-center justify-between border-b-2 border-black z-40 sticky top-0">
+  <div class="flex items-center gap-3">
+    <div class="w-6 h-6 bg-[#2E8C42] flex items-center justify-center font-bold text-xs text-white">A</div>
+    <span class="font-display font-extrabold text-xs tracking-wider">APPROVA // DASHBOARD SUITE</span>
+    <span class="font-mono text-[10px] text-emerald-400 bg-white/10 px-2 py-0.5 rounded">CHALLENGE: DASHBOARD WIDGET</span>
+  </div>
+
+  <div class="flex items-center gap-3">
+    <!-- View Decisions History Button -->
+    <button onclick="openHistoryModal()" class="text-xs font-mono bg-[#2E8C42] text-white px-3 py-1 font-bold hover:bg-emerald-600 transition-all flex items-center gap-1.5 brut-sm">
+      <i class="ti ti-archive text-sm"></i> <span>DECISIONS AUDIT (<span id="btn-hist-count">4</span>)</span>
+    </button>
+    <div class="hidden sm:flex items-center gap-2 font-mono text-[11px] text-slate-300">
+      <span class="w-2 h-2 rounded-full bg-[#2E8C42] animate-ping"></span>
+      <span id="header-clock">13:45:00 UTC</span>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================
+     MASTER DASHBOARD WIDGET VIEW
+     ======================================================== -->
+<section id="standalone-widget-view" class="p-4 sm:p-8 md:p-12 min-h-[92vh] flex flex-col items-center justify-center grid-paper">
+  
+  <div class="w-full max-w-4xl">
+    
+    <!-- Widget Meta Header & Filter Tabs -->
+    <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+      <div class="flex items-center gap-2">
+        <span class="tag bg-[#2E8C42] text-white">FINTECH OPERATIONS WIDGET</span>
+        <h2 class="font-display font-black text-2xl sm:text-3xl text-[#121210]">Executive PO Approval Widget</h2>
+      </div>
+
+      <!-- Category Filter Tabs -->
+      <div class="flex items-center gap-1.5 text-xs font-mono">
+        <button onclick="setFilter('all', this)" class="brut-sm bg-[#121210] text-white px-2.5 py-1 font-bold filter-pill">ALL (4)</button>
+        <button onclick="setFilter('urgent', this)" class="brut-sm bg-white px-2.5 py-1 font-bold filter-pill hover:bg-slate-100">🚨 URGENT (1)</button>
+        <button onclick="setFilter('capex', this)" class="brut-sm bg-white px-2.5 py-1 font-bold filter-pill hover:bg-slate-100">CAPEX (2)</button>
+        <button onclick="openHistoryModal()" class="brut-sm bg-[#E8A030] text-black px-2.5 py-1 font-bold hover:bg-amber-400">📜 HISTORY</button>
+      </div>
+    </div>
+
+    <!-- THE MASTER DASHBOARD WIDGET CONTAINER -->
+    <div class="brut-lg bg-white rounded-none p-6 sm:p-8 relative overflow-hidden shadow-2xl" id="widget-box">
+      
+      <!-- Watermark Stamp Target -->
+      <div id="widget-stamp-drop" class="absolute inset-0 flex items-center justify-center pointer-events-none z-50"></div>
+
+      <!-- Top Widget Status Bar -->
+      <div class="flex items-center justify-between border-b-[3px] border-[#121210] pb-4 mb-5 flex-wrap gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-[#2E8C42] brut-sm flex items-center justify-center text-white">
+            <i class="ti ti-stamp text-2xl"></i>
+          </div>
+          <div>
+            <div class="font-display font-bold text-lg leading-tight flex items-center gap-2">
+              Approva Decision Station
+              <span class="w-2.5 h-2.5 rounded-full bg-[#2E8C42] animate-ping"></span>
+            </div>
+            <div class="text-[11px] font-mono opacity-60">RAPID TRIAGE & IMMUTABLE LEDGER</div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <!-- Real-Time Countdown Timer -->
+          <div class="brut-sm bg-[#CFE8D6] px-2.5 py-1 text-[11px] font-mono flex items-center gap-1.5 font-bold">
+            <i class="ti ti-clock text-[#121210]"></i>
+            <span>SLA:</span>
+            <span id="sla-countdown" class="text-[#C03A3A] font-black">47h 18m 22s</span>
+          </div>
+
+          <!-- Carousel Controls -->
+          <button onclick="widgetPrevPO()" class="brut-sm bg-white px-2.5 py-1 text-xs font-bold hover:bg-slate-100 btn-press"><i class="ti ti-chevron-left"></i></button>
+          <span class="font-mono text-xs font-bold px-2" id="widget-pagination">1 of 4</span>
+          <button onclick="widgetNextPO()" class="brut-sm bg-white px-2.5 py-1 text-xs font-bold hover:bg-slate-100 btn-press"><i class="ti ti-chevron-right"></i></button>
+        </div>
+      </div>
+
+      <!-- Widget Content Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+        
+        <!-- Left: 3D Interactive Seal Widget Canvas -->
+        <div class="md:col-span-4 flex flex-col items-center">
+          <div class="w-full h-48 bg-[#F4FAF6] brut border-[#121210] relative flex items-center justify-center overflow-hidden cursor-grab active:cursor-grabbing" id="widget-3d-seal">
+            <div class="absolute top-2 left-2 text-[9px] font-mono bg-[#CFE8D6] px-1.5 py-0.5 border border-[#121210] font-bold">3D KINETIC SEAL</div>
+            <div class="absolute bottom-1 right-2 text-[8px] font-mono opacity-50 uppercase font-bold">Drag to Rotate</div>
+          </div>
+          
+          <div class="flex items-center justify-between w-full mt-2 text-[10px] font-mono">
+            <span class="opacity-70 font-bold">CFO Digital Token</span>
+            <button onclick="switch3DMaterial()" class="underline hover:text-[#2E8C42] font-bold flex items-center gap-1">
+              <i class="ti ti-palette"></i> Cycle Shader
+            </button>
+          </div>
+        </div>
+
+        <!-- Center: Primary Information Density -->
+        <div class="md:col-span-5 space-y-3">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="tag bg-[#E8A030] text-black" id="w-id">PO-2025-0418</span>
+            <span class="tag bg-[#CFE8D6]" id="w-category">CAPEX · WAREHOUSE</span>
+            <span class="tag bg-[#C03A3A] text-white" id="w-sla">3D SLA LEFT</span>
+          </div>
+
+          <div>
+            <div class="font-display font-extrabold text-2xl text-[#121210] leading-tight" id="w-vendor">Helvetica Logistics Co.</div>
+            <div class="text-xs font-mono opacity-70 mt-0.5" id="w-desc">Q1 Warehouse Rack Replacement · 14 items</div>
+          </div>
+
+          <!-- Key Financial Metric + Visual Budget Bar -->
+          <div class="brut-sm bg-[#CFE8D6] p-3 space-y-2">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="text-[9px] font-mono tracking-widest opacity-60 font-bold">TOTAL AMOUNT</div>
+                <div class="font-mono font-black text-2xl text-[#121210]" id="w-amount">$48,920.00</div>
+              </div>
+              <div class="text-right text-[11px] font-mono">
+                <span class="text-[#2E8C42] font-bold" id="w-budget-status">● Budget OK (62%)</span><br/>
+                <span class="opacity-60" id="w-terms">Net-30 Wire</span>
+              </div>
+            </div>
+
+            <!-- Animated Budget Progress Bar -->
+            <div>
+              <div class="flex justify-between text-[9px] font-mono opacity-70 mb-0.5">
+                <span>CapEx Dept Cap: $75,000</span>
+                <span id="w-budget-pct">65.2% Used</span>
+              </div>
+              <div class="w-full h-2.5 border border-[#121210] bg-white overflow-hidden">
+                <div id="w-budget-fill" class="h-full bg-[#2E8C42] transition-all duration-500" style="width: 65%;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stepper Chain Hierarchy -->
+          <div class="flex items-center justify-between pt-1">
+            <div class="flex items-center gap-1.5" id="w-stepper">
+              <span class="text-[10px] font-mono font-bold mr-1 opacity-60">CHAIN:</span>
+              <span class="chain-node bg-[#2E8C42] text-white text-[10px]">✓</span>
+              <span class="chain-line"></span>
+              <span class="chain-node bg-[#2E8C42] text-white text-[10px]">✓</span>
+              <span class="chain-line"></span>
+              <span class="chain-node bg-[#E8A030] text-[10px] font-bold">✓</span>
+              <span class="chain-line"></span>
+              <span class="chain-node bg-white text-[10px] font-bold border-2 animate-pulse">YOU</span>
+            </div>
+
+            <!-- Quick Line-Item Inspector Button -->
+            <button onclick="openItemsModal()" class="text-[11px] font-mono underline hover:text-[#2E8C42] font-bold flex items-center gap-1">
+              <i class="ti ti-file-text"></i> View Items (<span id="w-items-count">4</span>)
+            </button>
+          </div>
+        </div>
+
+        <!-- Right: Rapid Decision Action Buttons -->
+        <div class="md:col-span-3 flex flex-col gap-2.5">
+          <!-- APPROVE BUTTON -->
+          <button onclick="applyDecision('APPROVED', '#2E8C42', 'Signed off per Q1 CapEx policy & manager signoff')" class="brut bg-[#2E8C42] text-white font-display font-black py-3.5 px-4 btn-press text-center flex items-center justify-center gap-2 shadow-md">
+            <i class="ti ti-check text-2xl"></i>
+            <span class="text-base tracking-wider">APPROVE</span>
+          </button>
+
+          <!-- REJECT BUTTON -->
+          <button onclick="openDecisionModal('REJECTED', '#C03A3A')" class="brut bg-[#C03A3A] text-white font-display font-black py-2.5 px-4 btn-press text-center flex items-center justify-center gap-2">
+            <i class="ti ti-x text-lg"></i>
+            <span>REJECT</span>
+          </button>
+
+          <!-- NEEDS DETAIL BUTTON -->
+          <button onclick="openDecisionModal('NEEDS DETAIL', '#E8A030')" class="brut bg-[#E8A030] text-[#121210] font-display font-black py-2 px-4 btn-press text-center flex items-center justify-center gap-2 text-xs">
+            <i class="ti ti-info-circle text-base"></i>
+            <span>NEEDS DETAIL</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Bottom Telemetry & Policy Validation Strip -->
+      <div class="mt-6 pt-4 border-t-2 border-[#121210]/20 flex items-center justify-between text-xs font-mono flex-wrap gap-2">
+        <div class="flex items-center gap-3">
+          <span class="flex items-center gap-1"><i class="ti ti-shield-check text-[#2E8C42]"></i> 3-Quote Rule: <b class="text-[#2E8C42]">PASS ✓</b></span>
+          <span class="flex items-center gap-1"><i class="ti ti-user-check text-[#2E8C42]"></i> Submitter: <b id="w-submitter">D. Park (Ops)</b></span>
+          <span class="flex items-center gap-1"><i class="ti ti-lock text-[#2E8C42]"></i> KYC: <b>VERIFIED</b></span>
+        </div>
+        
+        <!-- See History Option Button right at the bottom -->
+        <button onclick="openHistoryModal()" class="font-bold underline hover:text-[#2E8C42] flex items-center gap-1.5 text-black">
+          <i class="ti ti-list-details"></i> View Each Approval & Rejection Reason (<span id="link-hist-count">4</span>) →
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Quick Hotkeys Banner -->
+    <div class="mt-4 flex items-center justify-between text-xs font-mono opacity-80 flex-wrap gap-2">
+      <span class="flex items-center gap-1"><i class="ti ti-bulb text-[#E8A030]"></i> Press <b>Ctrl/⌘ + Enter</b> to Approve instantly</span>
+      <span>Total Decisions: <b id="stamped-count" class="text-black text-sm">4</b> records</span>
+    </div>
+  </div>
+
+</section>
+
+<!-- ========================================================
+     JAVASCRIPT: THREE.JS 3D ENGINE, MODALS & AUDIT LOGIC
+     ======================================================== -->
+<script>
+  /* ========================================================
+     1. THREE.JS 3D WEBGL ENGINE
+     ======================================================== */
+  const mount = document.getElementById('widget-3d-seal');
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, mount.clientWidth / mount.clientHeight, 0.1, 100);
+  const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+  renderer.setSize(mount.clientWidth, mount.clientHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  mount.appendChild(renderer.domElement);
+
+  const tokenGroup = new THREE.Group();
+  scene.add(tokenGroup);
+
+  const coinColors = [0x2E8C42, 0x121210, 0xE8A030, 0xC03A3A, 0x00A3FF];
+  let colorIdx = 0;
+
+  const brassMaterial = new THREE.MeshStandardMaterial({
+    color: coinColors[0],
+    metalness: 0.85,
+    roughness: 0.25
+  });
+
+  const rimMaterial = new THREE.MeshStandardMaterial({
+    color: 0x121210,
+    metalness: 0.95,
+    roughness: 0.2
+  });
+
+  const cylinderGeo = new THREE.CylinderGeometry(1.65, 1.65, 0.35, 36);
+  const sealMesh = new THREE.Mesh(cylinderGeo, brassMaterial);
+  tokenGroup.add(sealMesh);
+
+  const torusGeo = new THREE.TorusGeometry(1.7, 0.09, 16, 64);
+  const rimMesh = new THREE.Mesh(torusGeo, rimMaterial);
+  rimMesh.rotation.x = Math.PI / 2;
+  tokenGroup.add(rimMesh);
+
+  const starGeo = new THREE.RingGeometry(0.5, 0.95, 8);
+  const starMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF, side: THREE.DoubleSide });
+  const starMesh = new THREE.Mesh(starGeo, starMat);
+  starMesh.position.y = 0.18;
+  starMesh.rotation.x = Math.PI / 2;
+  tokenGroup.add(starMesh);
+
+  const l1 = new THREE.DirectionalLight(0xffffff, 2.5);
+  l1.position.set(5, 5, 5);
+  scene.add(l1);
+
+  const l2 = new THREE.PointLight(0x2E8C42, 3, 10);
+  l2.position.set(-3, -3, 2);
+  scene.add(l2);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+
+  camera.position.z = 4.8;
+  tokenGroup.rotation.x = 0.45;
+
+  let isDragging = false;
+  let prevX = 0, prevY = 0;
+
+  mount.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    prevX = e.clientX;
+    prevY = e.clientY;
+  });
+  window.addEventListener('mouseup', () => { isDragging = false; });
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    tokenGroup.rotation.y += (e.clientX - prevX) * 0.02;
+    tokenGroup.rotation.x += (e.clientY - prevY) * 0.02;
+    prevX = e.clientX;
+    prevY = e.clientY;
+  });
+
+  window.addEventListener('resize', () => {
+    if (!mount) return;
+    camera.aspect = mount.clientWidth / mount.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(mount.clientWidth, mount.clientHeight);
+  });
+
+  function renderLoop() {
+    requestAnimationFrame(renderLoop);
+    if (!isDragging) tokenGroup.rotation.y += 0.015;
+    renderer.render(scene, camera);
+  }
+  renderLoop();
+
+  function switch3DMaterial() {
+    colorIdx = (colorIdx + 1) % coinColors.length;
+    brassMaterial.color.set(coinColors[colorIdx]);
+    playSynthTone(600, 0.08);
+  }
+
+  /* ========================================================
+     2. RICH DATA REPOSITORY & DECISION AUDIT RECORDS
+     ======================================================== */
+  const PO_DATA = [
+    {
+      id: "PO-2025-0418",
+      vendor: "Helvetica Logistics Co.",
+      desc: "Q1 Warehouse Rack Replacement · 14 items",
+      category: "CAPEX · WAREHOUSE",
+      sla: "3D SLA LEFT",
+      amount: "$48,920.00",
+      budgetPct: "65.2%",
+      budgetStatus: "● Budget OK (65%)",
+      submitter: "Devin Park (Ops)",
+      terms: "Net-30 Wire",
+      urgent: false,
+      hash: "8e2a...91f4",
+      items: [
+        { desc: "Heavy-duty pallet racking, 4-tier", qty: 24, unit: "$1,280.00", total: "$30,720.00" },
+        { desc: "Anchor bolts (M16) — case of 50", qty: 12, unit: "$86.40", total: "$1,036.80" },
+        { desc: "Installation labor · 3-day crew", qty: 1, unit: "$14,800.00", total: "$14,800.00" },
+        { desc: "Freight + customs handling", qty: 1, unit: "$2,363.20", total: "$2,363.20" }
+      ]
+    },
+    {
+      id: "EXP-9921",
+      vendor: "Figma Inc.",
+      desc: "Annual team seat renewal · 22 seats",
+      category: "SOFTWARE · SEATS",
+      sla: "ON SCHEDULE",
+      amount: "$3,960.00",
+      budgetPct: "14.8%",
+      budgetStatus: "● Budget OK (15%)",
+      submitter: "Lena Akhtar (Design)",
+      terms: "Credit Card",
+      urgent: false,
+      hash: "3b7c...19a0",
+      items: [
+        { desc: "Figma Organization Annual Seats", qty: 22, unit: "$180.00", total: "$3,960.00" }
+      ]
+    },
+    {
+      id: "PO-2025-0402",
+      vendor: "Brunswick Catering Ltd.",
+      desc: "Off-site quarterly all-hands · Q1",
+      category: "EVENTS · OPS",
+      sla: "⚠ +52H PAST SLA",
+      amount: "$12,480.50",
+      budgetPct: "88.4%",
+      budgetStatus: "⚠ High Burn (88%)",
+      submitter: "Marco Reyes (People)",
+      terms: "Net-15 Invoice",
+      urgent: true,
+      hash: "f42d...68c3",
+      items: [
+        { desc: "Catering package (140 pax)", qty: 140, unit: "$75.00", total: "$10,500.00" },
+        { desc: "Staffing & service fee", qty: 1, unit: "$1,980.50", total: "$1,980.50" }
+      ]
+    },
+    {
+      id: "EXP-9918",
+      vendor: "AWS Cloud Infrastructure",
+      desc: "Production compute clusters · auto-billed",
+      category: "INFRA · COMPUTE",
+      sla: "AUTO-ACH",
+      amount: "$27,304.18",
+      budgetPct: "72.1%",
+      budgetStatus: "● Budget OK (72%)",
+      submitter: "Noor Halberg (Eng)",
+      terms: "ACH Direct",
+      urgent: false,
+      hash: "a991...44de",
+      items: [
+        { desc: "EC2 & EKS Cluster compute", qty: 1, unit: "$18,420.00", total: "$18,420.00" },
+        { desc: "Aurora Postgres Multi-AZ", qty: 1, unit: "$6,884.18", total: "$6,884.18" },
+        { desc: "CloudFront CDN egress", qty: 1, unit: "$2,000.00", total: "$2,000.00" }
+      ]
+    }
+  ];
+
+  // STORED AUDIT DECISION RECORDS (EACH WITH REASON, ACTOR, TIMESTAMP)
+  const DECISION_RECORDS = [
+    {
+      id: "PO-2025-0417",
+      vendor: "Kuehne+Nagel Logistics",
+      amount: "$18,250.00",
+      status: "REJECTED",
+      color: "#C03A3A",
+      actor: "Mara Vossberg (CFO)",
+      timestamp: "15 OCT 2026 · 11:24:08 UTC",
+      reason: "Exceeds allocated freight CapEx by $4,200; missing mandatory 3-quote competitive comparison as required by internal procurement policy.",
+      policyCheck: "FAILED: 3-Quote Rule (Only 1 quote attached)"
+    },
+    {
+      id: "EXP-9912",
+      vendor: "Linear Orbit B.V.",
+      amount: "$1,440.00",
+      status: "APPROVED",
+      color: "#2E8C42",
+      actor: "Mara Vossberg (CFO)",
+      timestamp: "15 OCT 2026 · 09:18:42 UTC",
+      reason: "Standard monthly project management seats renewal. Verified within team budget and pre-approved by Head of Product.",
+      policyCheck: "PASSED: Within allocated Software SaaS envelope"
+    },
+    {
+      id: "EXP-9908",
+      vendor: "DoorDash for Work",
+      amount: "$482.16",
+      status: "NEEDS DETAIL",
+      color: "#E8A030",
+      actor: "Anna Klein (Finance Mgr)",
+      timestamp: "14 OCT 2026 · 18:40:15 UTC",
+      reason: "Missing itemized receipt breakdown for dinner meeting. Please attach CSV/receipts indicating attendees and client billing codes.",
+      policyCheck: "PENDING: Itemized expense verification"
+    },
+    {
+      id: "PO-2025-0416",
+      vendor: "Notion Labs Inc.",
+      amount: "$9,720.00",
+      status: "APPROVED",
+      color: "#2E8C42",
+      actor: "Ryo Sato (Fin Controller)",
+      timestamp: "14 OCT 2026 · 14:11:30 UTC",
+      reason: "Annual enterprise contract renewal with 15% negotiated volume discount. Signed contract on file in DocuSign.",
+      policyCheck: "PASSED: Contract verified & KYC validated"
+    }
+  ];
+
+  let currentPOIndex = 0;
+  let currentDecisionFilter = 'ALL';
+
+  function updateWidgetDisplay() {
+    const po = PO_DATA[currentPOIndex];
+    document.getElementById('w-id').innerText = po.id;
+    document.getElementById('w-vendor').innerText = po.vendor;
+    document.getElementById('w-desc').innerText = po.desc;
+    document.getElementById('w-category').innerText = po.category;
+    document.getElementById('w-sla').innerText = po.sla;
+    document.getElementById('w-amount').innerText = po.amount;
+    document.getElementById('w-budget-status').innerText = po.budgetStatus;
+    document.getElementById('w-terms').innerText = po.terms;
+    document.getElementById('w-submitter').innerText = po.submitter;
+    document.getElementById('w-hash').innerText = po.hash;
+    document.getElementById('w-items-count').innerText = po.items.length;
+    document.getElementById('w-budget-pct').innerText = po.budgetPct + " Used";
+    document.getElementById('w-budget-fill').style.width = po.budgetPct;
+    document.getElementById('widget-pagination').innerText = `${currentPOIndex + 1} of ${PO_DATA.length}`;
+
+    const slaEl = document.getElementById('w-sla');
+    slaEl.className = po.urgent ? "tag bg-[#C03A3A] text-white" : "tag bg-[#CFE8D6] text-black";
+
+    updateHistoryCounts();
+  }
+
+  function updateHistoryCounts() {
+    const count = DECISION_RECORDS.length;
+    document.getElementById('hist-all-count').innerText = count;
+    document.getElementById('btn-hist-count').innerText = count;
+    document.getElementById('link-hist-count').innerText = count;
+    document.getElementById('stamped-count').innerText = count;
+  }
+
+  function widgetNextPO() {
+    currentPOIndex = (currentPOIndex + 1) % PO_DATA.length;
+    updateWidgetDisplay();
+    playSynthTone(520, 0.05);
+  }
+
+  function widgetPrevPO() {
+    currentPOIndex = (currentPOIndex - 1 + PO_DATA.length) % PO_DATA.length;
+    updateWidgetDisplay();
+    playSynthTone(520, 0.05);
+  }
+
+  function setFilter(filter, btn) {
+    document.querySelectorAll('.filter-pill').forEach(b => {
+      b.className = "brut-sm bg-white px-2.5 py-1 font-bold filter-pill hover:bg-slate-100";
+    });
+    btn.className = "brut-sm bg-[#121210] text-white px-2.5 py-1 font-bold filter-pill";
+
+    if (filter === 'urgent') currentPOIndex = 2;
+    else if (filter === 'capex') currentPOIndex = 0;
+    else currentPOIndex = 0;
+    updateWidgetDisplay();
+  }
+
+  /* ========================================================
+     3. DECISION AUDIT RECORDS RENDERER (THE USER'S REQUEST)
+     ======================================================== */
+  function openHistoryModal() {
+    renderDecisionRecords();
+    document.getElementById('history-modal').classList.remove('hidden');
+    playSynthTone(550, 0.08);
+  }
+
+  function closeHistoryModal() {
+    document.getElementById('history-modal').classList.add('hidden');
+  }
+
+  function filterDecisions(status, btn) {
+    currentDecisionFilter = status;
+    document.querySelectorAll('.hist-tab').forEach(b => {
+      b.className = "brut-sm bg-white px-3 py-1 font-bold hist-tab hover:bg-slate-100";
+    });
+    btn.className = "brut-sm bg-[#121210] text-white px-3 py-1 font-bold hist-tab";
+    renderDecisionRecords();
+  }
+
+  function renderDecisionRecords() {
+    const container = document.getElementById('history-cards-container');
+    container.innerHTML = '';
+
+    const list = currentDecisionFilter === 'ALL' 
+      ? DECISION_RECORDS 
+      : DECISION_RECORDS.filter(r => r.status === currentDecisionFilter);
+
+    if (list.length === 0) {
+      container.innerHTML = `<div class="p-6 text-center font-mono text-xs opacity-60">No records found for status "${currentDecisionFilter}".</div>`;
+      return;
+    }
+
+    list.forEach(rec => {
+      const card = document.createElement('div');
+      card.className = "brut bg-white p-4 relative";
+      card.innerHTML = `
+        <div class="flex items-start justify-between gap-3 mb-2 flex-wrap">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-display font-black text-base text-[#121210]">${rec.vendor}</span>
+              <span class="font-mono text-xs font-bold opacity-60">(${rec.id})</span>
+            </div>
+            <div class="text-[11px] font-mono opacity-60 mt-0.5">By <b>${rec.actor}</b> · ${rec.timestamp}</div>
+          </div>
+          
+          <div class="text-right">
+            <span class="stamp font-black text-xs" style="color:${rec.color}; border-color:${rec.color};">${rec.status}</span>
+            <div class="font-mono font-black text-base mt-1 text-[#121210]">${rec.amount}</div>
+          </div>
+        </div>
+
+        <!-- The Audit Rationale / Decision Information -->
+        <div class="bg-[#F4FAF6] border border-[#121210]/20 p-2.5 mt-2 rounded-none">
+          <div class="font-mono text-[9px] uppercase tracking-wider font-bold opacity-60 mb-0.5">DECISION REASON & RATIONALE:</div>
+          <div class="font-mono text-xs text-[#121210] leading-relaxed">"${rec.reason}"</div>
+          <div class="mt-1.5 text-[10px] font-mono text-[#2E8C42] flex items-center gap-1 font-bold">
+            <i class="ti ti-shield-check"></i> ${rec.policyCheck}
+          </div>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+  }
+
+  /* ========================================================
+     4. STAMP ACTIONS & FEEDBACK MODAL
+     ======================================================== */
+  let audioCtx = null;
+
+  function playSynthTone(freq, dur) {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      g.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+      osc.connect(g);
+      g.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + dur);
+    } catch(e) {}
+  }
+
+  function applyDecision(label, color, reason) {
+    const po = PO_DATA[currentPOIndex];
+    const decisionReason = reason || `Approved by CFO Mara Vossberg per Q1 budget allocation rules.`;
+
+    // Append to Decision Records List
+    DECISION_RECORDS.unshift({
+      id: po.id,
+      vendor: po.vendor,
+      amount: po.amount,
+      status: label,
+      color: color,
+      actor: "Mara Vossberg (CFO)",
+      timestamp: new Date().toUTCString().replace('GMT', 'UTC'),
+      reason: decisionReason,
+      policyCheck: label === 'APPROVED' ? "PASSED: Verified compliance & vendor KYC" : (label === 'REJECTED' ? "FAILED: Non-compliant expenditure" : "PENDING: Needs additional info")
+    });
+
+    updateHistoryCounts();
+
+    const drop = document.getElementById('widget-stamp-drop');
+    drop.innerHTML = '';
+
+    const el = document.createElement('div');
+    el.className = 'widget-big-stamp';
+    el.textContent = label;
+    el.style.color = color;
+    drop.appendChild(el);
+
+    playSynthTone(120, 0.25);
+    setTimeout(() => playSynthTone(420, 0.1), 80);
+
+    if (label === 'APPROVED' && typeof confetti === 'function') {
+      confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+    }
+
+    gsap.fromTo(el, 
+      { scale: 3.2, rotation: -20, opacity: 0 },
+      { scale: 1, rotation: -7, opacity: 0.95, duration: 0.45, ease: 'back.out(2)' }
+    );
+
+    const box = document.getElementById('widget-box');
+    gsap.to(box, {
+      x: -6, repeat: 3, yoyo: true, duration: 0.05, ease: 'power1.inOut',
+      onComplete: () => { gsap.set(box, { x: 0 }); }
+    });
+
+    tokenGroup.rotation.y += Math.PI * 2;
+    brassMaterial.color.set(color === '#2E8C42' ? 0x2E8C42 : (color === '#C03A3A' ? 0xC03A3A : 0xE8A030));
+
+    setTimeout(() => {
+      drop.innerHTML = '';
+      widgetNextPO();
+    }, 1200);
+  }
+
+  let pendingModalAction = null;
+  let pendingModalColor = null;
+
+  function openDecisionModal(action, color) {
+    pendingModalAction = action;
+    pendingModalColor = color;
+    document.getElementById('modal-title').innerHTML = `<i class="ti ti-alert-triangle text-[${color}]"></i> ${action} Audit Note`;
+    document.getElementById('modal-input').value = '';
+    document.getElementById('decision-modal').classList.remove('hidden');
+    playSynthTone(440, 0.1);
+  }
+
+  function closeModal() {
+    document.getElementById('decision-modal').classList.add('hidden');
+  }
+
+  function appendReason(txt) {
+    const inp = document.getElementById('modal-input');
+    inp.value = inp.value ? inp.value + "; " + txt : txt;
+  }
+
+  function confirmModalAction() {
+    const val = document.getElementById('modal-input').value || `${pendingModalAction} by CFO Mara Vossberg.`;
+    closeModal();
+    applyDecision(pendingModalAction, pendingModalColor, val);
+  }
+
+  function openItemsModal() {
+    const po = PO_DATA[currentPOIndex];
+    document.getElementById('items-modal-title').innerText = `${po.vendor} — Line Items`;
+    document.getElementById('items-modal-subtitle').innerText = `${po.id} · ${po.desc}`;
+    document.getElementById('items-modal-total').innerText = po.amount;
+
+    const tbody = document.getElementById('items-modal-body');
+    tbody.innerHTML = '';
+    po.items.forEach(it => {
+      const tr = document.createElement('tr');
+      tr.className = "border-b border-[#121210]/20";
+      tr.innerHTML = `
+        <td class="p-2.5 font-bold">${it.desc}</td>
+        <td class="p-2.5 text-right">${it.qty}</td>
+        <td class="p-2.5 text-right">${it.unit}</td>
+        <td class="p-2.5 text-right font-black text-[#121210]">${it.total}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('items-modal').classList.remove('hidden');
+    playSynthTone(550, 0.08);
+  }
+
+  function closeItemsModal() {
+    document.getElementById('items-modal').classList.add('hidden');
+  }
+
+  /* ========================================================
+     5. LIVE CLOCKS & HOTKEYS
+     ======================================================== */
+  function updateClocks() {
+    const d = new Date();
+    document.getElementById('header-clock').innerText = d.toTimeString().substring(0, 8) + ' UTC';
+  }
+  setInterval(updateClocks, 1000);
+  updateClocks();
+
+  let slaSeconds = 47 * 3600 + 18 * 60 + 22;
+  setInterval(() => {
+    if (slaSeconds > 0) slaSeconds--;
+    const h = Math.floor(slaSeconds / 3600);
+    const m = Math.floor((slaSeconds % 3600) / 60);
+    const s = slaSeconds % 60;
+    document.getElementById('sla-countdown').innerText = `${h}h ${m}m ${s < 10 ? '0' : ''}${s}s`;
+  }, 1000);
+
+  window.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      applyDecision('APPROVED', '#2E8C42', 'Instant shortcut approval signed by CFO.');
+    }
+  });
+
+  updateWidgetDisplay();
+</script>
+</body>
+</html>
