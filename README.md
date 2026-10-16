@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./public/screenshots/Screenshot%202026-10-16%20114518.png" alt="Signal project banner" width="100%" />
+<img src="./public/screenshots/Signal%20Logo%20on%20a%20Dark%20Grid.png" alt="Signal project banner" width="100%" />
 
 A personalized content dashboard bringing **news, film recommendations, and social posts** into one customizable feed — wrapped in a bold neo-brutalist operations-console interface.
 
