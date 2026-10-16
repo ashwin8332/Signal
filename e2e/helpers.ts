@@ -1,11 +1,13 @@
 import { expect, type Page } from '@playwright/test';
 
-/** Signs in with the demo account and waits for the feed to render. */
-export async function signInAsDemo(page: Page, path = '/') {
-  await page.goto(path === '/' ? '/login' : `/login?next=${encodeURIComponent(path)}`);
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** Signs in with the demo account and waits until it lands on `path` (the dashboard by default). */
+export async function signInAsDemo(page: Page, path = '/dashboard') {
+  await page.goto(path === '/dashboard' ? '/login' : `/login?next=${encodeURIComponent(path)}`);
   await page.getByRole('button', { name: 'Continue with demo account' }).click();
   // Sign-in sets the cookie, then the client navigates: allow for a cold server.
-  await expect(page).toHaveURL(path === '/' ? /\/$/ : new RegExp(path.replace('?', '\\?')), { timeout: 20_000 });
+  await expect(page).toHaveURL(new RegExp(`${escapeRegExp(path)}$`), { timeout: 20_000 });
 }
 
 export async function waitForFeed(page: Page) {

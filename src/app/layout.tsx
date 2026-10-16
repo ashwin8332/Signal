@@ -46,7 +46,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <head>
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body>
+      {/* Extensions such as Grammarly add attributes to <body> before hydration; this only silences <body>'s own attributes. */}
+      <body suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
     </html>

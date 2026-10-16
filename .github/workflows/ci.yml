@@ -20,6 +20,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      # Fails fast, with a fix hint, if the lockfile lost platform bindings.
+      - run: node scripts/check-lockfile.mjs
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
@@ -36,6 +38,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      # Fails fast, with a fix hint, if the lockfile lost platform bindings.
+      - run: node scripts/check-lockfile.mjs
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       # Builds the app and runs it with mock data only: no API keys needed in CI.

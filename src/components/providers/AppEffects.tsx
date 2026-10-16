@@ -26,6 +26,8 @@ export function AppEffects() {
 
   useEffect(() => {
     dispatch(hydrateDevice(loadDeviceSettings()));
+    // Marker for tests and tooling: the client app is live and interactive.
+    document.documentElement.dataset.hydrated = 'true';
   }, [dispatch]);
 
   useEffect(() => {

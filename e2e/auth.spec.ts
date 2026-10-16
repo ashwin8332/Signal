@@ -35,10 +35,10 @@ test.describe('authentication', () => {
     await page.getByRole('button', { name: 'Create account' }).click();
     await expect(page).toHaveURL(/\/settings$/);
 
-    await page.getByRole('button', { name: 'E2E Reader, account menu' }).click();
+    await page.getByRole('button', { name: /^E2E Reader\s?, account menu$/ }).click();
     await page.getByRole('button', { name: 'Sign out' }).click();
     await expect(page).toHaveURL(/\/login/);
-    await page.goto('/');
+    await page.goto('/dashboard');
     await expect(page).toHaveURL(/\/login/);
   });
 
@@ -46,7 +46,7 @@ test.describe('authentication', () => {
     await signInAsDemo(page);
     await waitForFeed(page);
     await page.goto('/login');
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(/\/dashboard$/);
   });
 
   test('pages carry a nonce-based CSP and anti-framing headers', async ({ page }) => {

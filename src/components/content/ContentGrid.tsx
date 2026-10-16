@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { useDrag, useDrop } from 'react-dnd';
+import { useDrag, useDragLayer, useDrop } from 'react-dnd';
 import { useTranslation } from 'react-i18next';
 import type { ContentItem } from '@/types/content';
 import { cn } from '@/lib/cn';
@@ -75,6 +75,23 @@ export function ReorderableGrid({ items, onMove, id, spotlight = false }: Reorde
   const { t } = useTranslation();
   const [announcement, setAnnouncement] = useState('');
   const pendingFocus = useRef<string | null>(null);
+  const lastHoverMove = useRef(0);
+
+  // The spotlight (double-width first card) is frozen while a drag is in
+  // progress: if it switched mid-drag the grid would reflow under the pointer
+  // and undo the move. Whatever is first on drop becomes the spotlight.
+  const dragging = useDragLayer((monitor) => monitor.isDragging());
+  const [featuredId, setFeaturedId] = useState(items[0]?.id ?? null);
+  if (!dragging && featuredId !== (items[0]?.id ?? null)) setFeaturedId(items[0]?.id ?? null);
+
+  /** Pointer reorder with a short cooldown, so one reflow can't ping-pong two cards. */
+  const hoverMove = (from: number, to: number): boolean => {
+    const now = performance.now();
+    if (now - lastHoverMove.current < 150) return false;
+    lastHoverMove.current = now;
+    onMove(from, to);
+    return true;
+  };
 
   // After a keyboard move React re-orders the DOM, so put focus back on the
   // same control of the moved card (or its sibling if that one is now disabled).
@@ -107,8 +124,8 @@ export function ReorderableGrid({ items, onMove, id, spotlight = false }: Reorde
             item={item}
             index={index}
             total={items.length}
-            featured={spotlight && index === 0}
-            onHoverMove={onMove}
+            featured={spotlight && item.id === featuredId}
+            onHoverMove={hoverMove}
             onMoveEarlier={() => moveWithKeyboard(index, -1)}
             onMoveLater={() => moveWithKeyboard(index, 1)}
           />
@@ -134,7 +151,8 @@ function SortableCard({
   index: number;
   total: number;
   featured: boolean;
-  onHoverMove: (from: number, to: number) => void;
+  /** Returns false when the move was skipped (cooldown). */
+  onHoverMove: (from: number, to: number) => boolean;
   onMoveEarlier: () => void;
   onMoveLater: () => void;
 }) {
@@ -166,7 +184,7 @@ function SortableCard({
         const forward = from < index;
         const crossed = forward ? pointer.x > midX || pointer.y > midY : pointer.x < midX || pointer.y < midY;
         if (!crossed) return;
-        onHoverMove(from, index);
+        if (!onHoverMove(from, index)) return;
         dragged.index = index; // the dragged card now lives here
       },
     }),

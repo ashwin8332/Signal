@@ -7,11 +7,13 @@ test.describe('drag-and-drop reordering', () => {
     await waitForFeed(page);
     const before = await cardTitles(page);
 
+    // Drag the third card (a regular one, beside the second) onto the left
+    // half of the second card: they swap.
     const cards = page.getByTestId('content-card');
-    await cards.nth(0).hover();
-    await cards.nth(0).getByTestId('drag-handle').dragTo(cards.nth(2), { targetPosition: { x: 260, y: 200 } });
+    await cards.nth(2).hover();
+    await cards.nth(2).getByTestId('drag-handle').dragTo(cards.nth(1), { targetPosition: { x: 30, y: 120 } });
 
-    await expect.poll(() => cardTitles(page).then((titles) => titles.indexOf(before[0]!))).toBeGreaterThan(0);
+    await expect.poll(() => cardTitles(page).then((titles) => titles.indexOf(before[2]!))).toBe(1);
     const after = await cardTitles(page);
     expect(after).not.toEqual(before);
 

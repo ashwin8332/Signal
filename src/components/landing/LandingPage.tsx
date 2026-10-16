@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -189,6 +190,46 @@ export function LandingPage() {
               </div>
             ))}
           </dl>
+        </section>
+
+        {/* ── Showcase: real product screenshots ─────────────────── */}
+        <section aria-labelledby="showcase-title" className="mx-auto max-w-7xl px-4 pt-20 md:px-8">
+          <Reveal className="max-w-2xl">
+            <h2 id="showcase-title" className="font-display text-4xl font-black uppercase leading-none tracking-tight text-fg md:text-5xl">
+              {t('landing.showcaseTitle')}
+            </h2>
+            <p className="mt-4 text-lg text-fg-muted">{t('landing.showcaseBody')}</p>
+          </Reveal>
+          <Reveal delay={0.1} className="mt-10">
+            <figure className="brut-lg relative overflow-hidden bg-surface">
+              {/* Browser chrome */}
+              <div aria-hidden="true" className="flex h-10 items-center gap-2 border-b-[3px] border-ink bg-bar px-4">
+                <span className="h-3 w-3 rounded-full bg-[#e8a030]" />
+                <span className="h-3 w-3 rounded-full bg-[#cfe8d6]" />
+                <span className="h-3 w-3 rounded-full bg-[#fbd0d0]" />
+                <span className="ml-4 hidden h-6 flex-1 items-center border-2 border-[#cfe8d6]/40 px-3 font-mono text-[11px] font-bold text-bar-fg/80 sm:flex">
+                  signal.app/dashboard
+                </span>
+              </div>
+              {/* Light and dark captures; CSS picks the one matching the theme. */}
+              <Image
+                src="/screenshots/dashboard-light.png"
+                alt={t('landing.showcaseAlt')}
+                width={2880}
+                height={1800}
+                sizes="(min-width: 1280px) 1216px, 100vw"
+                className="h-auto w-full dark:hidden"
+              />
+              <Image
+                src="/screenshots/dashboard-dark.png"
+                alt={t('landing.showcaseAlt')}
+                width={2880}
+                height={1800}
+                sizes="(min-width: 1280px) 1216px, 100vw"
+                className="hidden h-auto w-full dark:block"
+              />
+            </figure>
+          </Reveal>
         </section>
 
         {/* ── Features ───────────────────────────────────────────── */}

@@ -46,7 +46,7 @@ describe('FavoritesView', () => {
   it('shows an empty state that leads back to the feed', () => {
     renderWithProviders(<FavoritesView />);
     expect(screen.getByRole('heading', { name: 'No favorites yet' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Browse your briefing/ })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: /Browse your briefing/ })).toHaveAttribute('href', '/dashboard');
   });
 
   it('removes an item and brings it back with Undo', async () => {
@@ -227,7 +227,7 @@ describe('LoginForm', () => {
     mockFetch({ '/api/auth/demo': () => json({ user: { id: 'demo', name: 'Demo', email: 'demo@signal.app' } }) });
     renderWithProviders(<LoginForm />, { user: null, pathname: '/login', search: 'next=//evil.com' });
     await userEvent.click(screen.getAllByRole('button', { name: /Continue with demo account/ }).at(-1)!);
-    await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/'));
+    await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('/dashboard'));
   });
 
   it('explains an expired session', () => {

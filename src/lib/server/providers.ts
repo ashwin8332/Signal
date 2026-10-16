@@ -55,6 +55,36 @@ async function upstreamJson<T>(provider: string, url: URL, headers: Record<strin
   return (await response.json()) as T;
 }
 
+// ─── Live-or-demo with a cooldown ────────────────────────────────────────────
+
+/** After an upstream failure (e.g. NewsAPI's 100-requests/day cap), stay on demo data this long. */
+const COOLDOWN_MS = 15 * 60_000;
+const cooldownUntil = new Map<string, number>();
+
+/**
+ * Runs `live` when the provider is configured and healthy; otherwise serves
+ * `demo`. On an upstream failure it switches that provider to demo data for
+ * 15 minutes instead of hammering a rate-limited API. Demo results carry
+ * `source: 'mock'`, so the dashboard visibly stamps them DEMO DATA: it's a
+ * labelled fallback, never a silent swap.
+ */
+async function liveOrDemo<C, T>(provider: string, credentials: C | null | undefined, demo: () => T, live: (credentials: C) => Promise<T>): Promise<T> {
+  if (!credentials || (cooldownUntil.get(provider) ?? 0) > Date.now()) return demo();
+  try {
+    return await live(credentials);
+  } catch (error) {
+    if (!(error instanceof UpstreamError)) throw error;
+    cooldownUntil.set(provider, Date.now() + COOLDOWN_MS);
+    console.warn(`[providers] ${error.message}; serving demo data for 15 minutes.`);
+    return demo();
+  }
+}
+
+/** Test helper: forget cooldowns. */
+export function resetProviderCooldowns(): void {
+  cooldownUntil.clear();
+}
+
 // ─── News ────────────────────────────────────────────────────────────────────
 
 interface NewsApiArticle {
@@ -98,10 +128,16 @@ export function normalizeNewsArticle(article: NewsApiArticle, category: string, 
   };
 }
 
-export async function getNews(categories: NewsCategory[], page: number, pageSize: number): Promise<ProviderPage> {
-  const apiKey = serverEnv.newsApiKey;
-  if (!apiKey) return { ...mockNewsPage(categories, page, pageSize), source: 'mock' };
+export function getNews(categories: NewsCategory[], page: number, pageSize: number): Promise<ProviderPage> {
+  return liveOrDemo(
+    'NewsAPI',
+    serverEnv.newsApiKey,
+    (): ProviderPage => ({ ...mockNewsPage(categories, page, pageSize), source: 'mock' }),
+    (apiKey) => liveNews(apiKey, categories, page, pageSize),
+  );
+}
 
+async function liveNews(apiKey: string, categories: NewsCategory[], page: number, pageSize: number): Promise<ProviderPage> {
   const perCategory = Math.max(1, Math.ceil(pageSize / categories.length));
   const results = await Promise.all(
     categories.map(async (category) => {
@@ -218,9 +254,16 @@ async function tmdbWindow(path: string, params: Record<string, string>, page: nu
   return { movies, hasMore: start + pageSize < Math.min(totalPages, 500) * TMDB_PAGE_SIZE };
 }
 
-export async function getMovies(genres: MovieGenre[], page: number, pageSize: number): Promise<ProviderPage> {
-  const auth = tmdbAuth();
-  if (!auth) return { ...mockMoviesPage(genres, page, pageSize), source: 'mock' };
+export function getMovies(genres: MovieGenre[], page: number, pageSize: number): Promise<ProviderPage> {
+  return liveOrDemo(
+    'TMDB',
+    tmdbAuth(),
+    (): ProviderPage => ({ ...mockMoviesPage(genres, page, pageSize), source: 'mock' }),
+    (auth) => liveMovies(auth, genres, page, pageSize),
+  );
+}
+
+async function liveMovies(auth: TmdbAuth, genres: MovieGenre[], page: number, pageSize: number): Promise<ProviderPage> {
   const { movies, hasMore } = await tmdbWindow(
     'discover/movie',
     { with_genres: genres.map((genre) => MOVIE_GENRES[genre]).join('|'), sort_by: 'popularity.desc' },
@@ -247,26 +290,36 @@ function byMetricDesc(a: ContentItem, b: ContentItem): number {
   return (b.metrics?.value ?? 0) - (a.metrics?.value ?? 0);
 }
 
-async function trendingNews(limit: number): Promise<ContentItem[]> {
-  const apiKey = serverEnv.newsApiKey;
-  if (!apiKey) return mockNewsCorpus(NEWS_CATEGORIES, 4).sort(byMetricDesc).slice(0, limit);
-  // Top headlines are already ranked by NewsAPI.
-  const url = new URL('https://newsapi.org/v2/top-headlines');
-  url.search = new URLSearchParams({ country: 'us', pageSize: String(limit) }).toString();
-  const data = await upstreamJson<NewsApiResponse>('NewsAPI', url, { 'X-Api-Key': apiKey });
-  return (data.articles ?? [])
-    .map((article) => normalizeNewsArticle(article, 'general', 'trending'))
-    .filter((item): item is ContentItem => item !== null);
+function trendingNews(limit: number): Promise<ContentItem[]> {
+  return liveOrDemo(
+    'NewsAPI',
+    serverEnv.newsApiKey,
+    () => mockNewsCorpus(NEWS_CATEGORIES, 4).sort(byMetricDesc).slice(0, limit),
+    async (apiKey) => {
+      // Top headlines are already ranked by NewsAPI.
+      const url = new URL('https://newsapi.org/v2/top-headlines');
+      url.search = new URLSearchParams({ country: 'us', pageSize: String(limit) }).toString();
+      const data = await upstreamJson<NewsApiResponse>('NewsAPI', url, { 'X-Api-Key': apiKey });
+      return (data.articles ?? [])
+        .map((article) => normalizeNewsArticle(article, 'general', 'trending'))
+        .filter((item): item is ContentItem => item !== null);
+    },
+  );
 }
 
-async function trendingMovies(limit: number): Promise<ContentItem[]> {
-  const auth = tmdbAuth();
-  if (!auth) return mockMovieCorpus(MOVIE_GENRE_KEYS, 3).sort(byMetricDesc).slice(0, limit);
-  const data = await upstreamJson<TmdbList>('TMDB', tmdbUrl('trending/movie/day', auth.params), auth.headers);
-  return data.results
-    .slice(0, limit)
-    .map((movie) => normalizeTmdbMovie(movie, MOVIE_GENRE_KEYS, 'trending'))
-    .filter((item): item is ContentItem => item !== null);
+function trendingMovies(limit: number): Promise<ContentItem[]> {
+  return liveOrDemo(
+    'TMDB',
+    tmdbAuth(),
+    () => mockMovieCorpus(MOVIE_GENRE_KEYS, 3).sort(byMetricDesc).slice(0, limit),
+    async (auth) => {
+      const data = await upstreamJson<TmdbList>('TMDB', tmdbUrl('trending/movie/day', auth.params), auth.headers);
+      return data.results
+        .slice(0, limit)
+        .map((movie) => normalizeTmdbMovie(movie, MOVIE_GENRE_KEYS, 'trending'))
+        .filter((item): item is ContentItem => item !== null);
+    },
+  );
 }
 
 async function trendingSocial(limit: number): Promise<ContentItem[]> {
@@ -282,7 +335,10 @@ const TRENDING_BY_TYPE: Record<ContentType, (limit: number) => Promise<ContentIt
 export async function getTrending(type: ContentType | 'all', limit: number): Promise<ContentItem[]> {
   const withReason = (items: ContentItem[]) => items.map((item) => ({ ...item, reason: 'trending' }));
   if (type !== 'all') return withReason(await TRENDING_BY_TYPE[type](limit));
-  const lists = await Promise.all([trendingNews(limit), trendingMovies(limit), trendingSocial(limit)]);
+  // One failing source never blanks the whole list.
+  const settled = await Promise.allSettled([trendingNews(limit), trendingMovies(limit), trendingSocial(limit)]);
+  const lists = settled.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
+  if (lists.length === 0) throw (settled[0] as PromiseRejectedResult).reason;
   return withReason(interleave(...lists).slice(0, limit));
 }
 
@@ -305,12 +361,19 @@ function pageOf(items: ContentItem[], page: number, pageSize: number) {
   return { items: items.slice(start, start + pageSize), hasMore: start + pageSize < items.length };
 }
 
-async function searchNews(query: string, page: number): Promise<ProviderPage> {
-  const apiKey = serverEnv.newsApiKey;
-  if (!apiKey) {
-    const matches = mockNewsCorpus(NEWS_CATEGORIES, 20).filter((item) => matchesQuery(item, query));
-    return { ...pageOf(matches, page, SEARCH_PAGE_SIZE), source: 'mock' };
-  }
+function searchNews(query: string, page: number): Promise<ProviderPage> {
+  return liveOrDemo(
+    'NewsAPI',
+    serverEnv.newsApiKey,
+    (): ProviderPage => {
+      const matches = mockNewsCorpus(NEWS_CATEGORIES, 20).filter((item) => matchesQuery(item, query));
+      return { ...pageOf(matches, page, SEARCH_PAGE_SIZE), source: 'mock' };
+    },
+    (apiKey) => liveSearchNews(apiKey, query, page),
+  );
+}
+
+async function liveSearchNews(apiKey: string, query: string, page: number): Promise<ProviderPage> {
   const url = new URL('https://newsapi.org/v2/everything');
   url.search = new URLSearchParams({
     q: query,
@@ -330,12 +393,19 @@ async function searchNews(query: string, page: number): Promise<ProviderPage> {
   };
 }
 
-async function searchMovies(query: string, page: number): Promise<ProviderPage> {
-  const auth = tmdbAuth();
-  if (!auth) {
-    const matches = mockMovieCorpus(MOVIE_GENRE_KEYS, 12).filter((item) => matchesQuery(item, query));
-    return { ...pageOf(matches, page, SEARCH_PAGE_SIZE), source: 'mock' };
-  }
+function searchMovies(query: string, page: number): Promise<ProviderPage> {
+  return liveOrDemo(
+    'TMDB',
+    tmdbAuth(),
+    (): ProviderPage => {
+      const matches = mockMovieCorpus(MOVIE_GENRE_KEYS, 12).filter((item) => matchesQuery(item, query));
+      return { ...pageOf(matches, page, SEARCH_PAGE_SIZE), source: 'mock' };
+    },
+    (auth) => liveSearchMovies(auth, query, page),
+  );
+}
+
+async function liveSearchMovies(auth: TmdbAuth, query: string, page: number): Promise<ProviderPage> {
   const { movies, hasMore } = await tmdbWindow('search/movie', { query }, page, SEARCH_PAGE_SIZE, auth);
   return {
     items: movies
