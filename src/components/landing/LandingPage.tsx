@@ -219,7 +219,7 @@ export function LandingPage() {
                 alt={t('landing.showcaseAlt')}
                 width={2880}
                 height={1800}
-                sizes="(min-width: 1280px) 1216px, 100vw"
+                unoptimized
                 className="h-auto w-full dark:hidden"
               />
               <Image
@@ -227,7 +227,7 @@ export function LandingPage() {
                 alt={t('landing.showcaseAlt')}
                 width={2880}
                 height={1800}
-                sizes="(min-width: 1280px) 1216px, 100vw"
+                unoptimized
                 className="hidden h-auto w-full dark:block"
               />
             </figure>
