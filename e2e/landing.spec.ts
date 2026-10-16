@@ -14,10 +14,18 @@ test.describe('landing page', () => {
 
   test('the showcase screenshot actually loads for signed-out visitors', async ({ page }) => {
     await page.goto('/');
-    const shot = page.getByRole('img', { name: /Screenshot of the Signal dashboard/ }).filter({ visible: true }).first();
-    await shot.scrollIntoViewIfNeeded();
-    // naturalWidth is 0 for a broken image (e.g. if /public files were sent to /login).
-    await expect.poll(() => shot.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBeGreaterThan(0);
+    const screenshots = page.getByRole('img', { name: /Screenshot of the Signal dashboard/ });
+    const expectVisibleScreenshotToLoad = async (src: string) => {
+      const shot = screenshots.filter({ visible: true }).first();
+      await shot.scrollIntoViewIfNeeded();
+      await expect(shot).toHaveAttribute('src', src);
+      // naturalWidth is 0 for a broken image (e.g. if /public files were sent to /login).
+      await expect.poll(() => shot.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBeGreaterThan(0);
+    };
+
+    await expectVisibleScreenshotToLoad('/screenshots/dashboard-light.png');
+    await page.getByTestId('theme-toggle').click();
+    await expectVisibleScreenshotToLoad('/screenshots/dashboard-dark.png');
   });
 
   test('"Try the live demo" signs in and opens the dashboard', async ({ page }) => {
