@@ -20,7 +20,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000 and click **Continue with demo account**, or create an account.
+Open http://localhost:3000 for the landing page, then **Try the live demo** (one click) or create an account. The dashboard lives at `/dashboard`.
 Prefer the form? The seeded demo login is in `src/lib/server/users.ts` (`DEMO_USER`).
 
 ### Optional: real APIs
@@ -34,6 +34,7 @@ cp .env.example .env.local
 | `NEWS_API_KEY` | [NewsAPI](https://newsapi.org/register) top headlines and search | Mock news |
 | `TMDB_API_READ_TOKEN` | [TMDB](https://www.themoviedb.org/settings/api) v4 read token (sent as a header, preferred) | Mock films |
 | `TMDB_API_KEY` | …or the TMDB v3 API key (sent as a query parameter, server-side only) | Mock films |
+| `SUPABASE_URL` / `SUPABASE_SECRET_KEY` | Persistent accounts and **per-user favorites** in Supabase (run `supabase/migrations/0001_users_and_favorites.sql` once) | In-memory accounts and favorites (reset on restart) |
 | `AUTH_SECRET` | Signs session cookies (32+ chars). **Required in production.** | Dev-only fallback, with a warning |
 | `LIVE_FEED_INTERVAL_MS` | How often the live stream pushes a post (default 20000) | 20 s |
 
@@ -75,7 +76,9 @@ Keys are read **only on the server** (`src/lib/server/env.ts`, guarded by `serve
 | **Unit / integration / E2E tests** | `tests/unit`, `tests/integration`, `e2e/` (see [Testing](#testing)) |
 | Bonus: **Authentication** + profile | Mock auth with real mechanics (scrypt, HMAC-signed httpOnly cookie, proxy guard), `/profile` |
 | Bonus: **Real-time** | Server-Sent Events `/api/stream` + "N new posts" pill |
-| Bonus: **i18n** | react-i18next: English, Español, Français (type-checked key parity) |
+| Bonus: **i18n** | react-i18next: English, Español, Français, Deutsch, Português, हिन्दी (type-checked key parity) |
+| **Per-user favorites** | One list per account: `/api/favorites` + Supabase `user_favorites` (RLS locked down), with optimistic UI and an offline cache |
+| **Marketing landing page** | `/`: hero, live-demo button, features, how it works, "built right" sheet, CTA |
 
 ### The dashboard
 - **Control bar**: an operations-console strip with the live-stream status (LIVE / CONNECTING / RECONNECTING / PAUSED / OFF) and a running clock.
@@ -112,7 +115,7 @@ Browser (React + Redux store)                         Next.js server
                                                    └───────────────────────────────────┘
 ```
 
-- **Backend-for-frontend.** All third-party calls go through Route Handlers that validate input (zod allow-lists), add 8 s timeouts and 5-minute caching, and normalize everything into one `ContentItem` shape. A failing upstream returns `502` and the UI degrades per source. It never silently swaps in fake data.
+- **Backend-for-frontend.** All third-party calls go through Route Handlers that validate input (zod allow-lists), add 8 s timeouts and 5-minute caching, and normalize everything into one `ContentItem` shape. If a real API fails (e.g. NewsAPI's 100-requests/day limit), that source switches to demo data for 15 minutes, and the **Source mix** panel stamps it DEMO DATA, so it is visible, never silent.
 - **RTK Query** owns server state. The feed is one `infiniteQuery` whose `queryFn` fetches the enabled sources in parallel and interleaves them. A failed source becomes `failedSources[]` instead of an error. Changing an interest changes the query argument (via a memoized selector), which triggers exactly one refetch.
 - **Slices** own client state. A custom **listener middleware** persists the whitelisted slices (debounced 250 ms) and **hydrates after mount**, so server and client render identically (no hydration mismatch). The feed query waits for hydration, so it never fetches defaults and then refetches.
 - **Ordering** is pure, tested logic in `lib/feed.ts`. Saved ids come first; newly loaded items append in natural order; reordering a filtered view keeps hidden items in their slots.
@@ -171,16 +174,17 @@ Debounced search (one request per pause); RTK Query caching and de-duplication; 
 
 ---
 
-## Deploying (e.g. Vercel)
+## Deploying (Vercel)
 
-1. Push the repo and import it in Vercel (framework: Next.js).
-2. Set `AUTH_SECRET` (`node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`), and optionally `NEWS_API_KEY` / `TMDB_API_READ_TOKEN`.
-3. Deploy. Note: NewsAPI's free plan only allows requests from localhost; on a deployed site without a paid key, leave `NEWS_API_KEY` empty to use mock news.
+Zero-config Next.js deploy, and the build needs no network (fonts are vendored). Full checklist in [`docs/08-deployment.md`](docs/08-deployment.md):
+1. Run `supabase/migrations/0001_users_and_favorites.sql` once in the Supabase SQL editor.
+2. Import the repo in Vercel and set `AUTH_SECRET`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY` (+ optional `NEWS_API_KEY`, `TMDB_API_KEY`/`TMDB_API_READ_TOKEN`).
+3. Deploy and open `/api/health`: it shows which integrations are configured (booleans only) and `storage: "supabase"`.
 
 ## Known limitations
 
-- Mock authentication keeps accounts **in server memory**: they reset on restart and aren't shared between serverless instances. The demo account always works. The production path is Auth.js plus a database; the UI and slices wouldn't change (ADR-006).
-- Preferences, favorites and order are stored **per browser** (localStorage), not synced across devices.
+- With Supabase configured, accounts and favorites are persistent and per user. Without it (CI, quick local runs) they live in server memory and reset on restart. The demo account always works.
+- Interests, feed order and profile are stored per user **on each device** (localStorage, keyed by account). Favorites are the account-wide, cloud-synced part.
 - The social network is mocked, as the brief allows.
 
 ## Live API verification

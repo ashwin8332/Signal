@@ -36,7 +36,7 @@ npm run test:e2e     # Playwright on a prod build, port 3100, mock data only (ru
 
 ## Rules that keep the project healthy
 1. **Secrets**: API keys live only in `.env.local` (gitignored) and are read only in `src/lib/server/env.ts`. Never use `NEXT_PUBLIC_` for keys, never commit or log them, never paste them into docs or `context/`.
-2. **Validate at the boundary**: every route handler parses input with zod (`src/lib/validation.ts`) and returns `{ error: { code, message } }` on failure. Upstream failure means 502 and a per-source "partial failure" in the UI; never silently swap in mock data.
+2. **Validate at the boundary**: every route handler parses input with zod (`src/lib/validation.ts`) and returns `{ error: { code, message } }` on failure. A failing upstream API falls back to labelled demo data (`source: "mock"`, 15-min cooldown via `liveOrDemo` in `providers.ts`); route errors (5xx) become per-source "partial failure" notices in the UI.
 3. **Styling** uses semantic tokens only (`bg-surface`, `text-fg-muted`, `border-ink`, `shadow-brut`, `.brut`, `.press`, `.tag`, `.stamp`). No raw hex in components except fixed ink-on-pastel pairs. Check contrast (≥ 4.5:1 text) in **both** themes.
 4. **Accessibility is a requirement**: labelled controls, visible focus, keyboard alternatives (e.g. move buttons for drag-and-drop), `aria-live` for async results, reduced-motion respected. E2E runs axe (WCAG 2.2 AA).
 5. **Every state**: loading, empty, error, and partial. Copy goes through i18n: add keys to `en.ts`, then `es.ts` and `fr.ts` (TypeScript enforces parity).

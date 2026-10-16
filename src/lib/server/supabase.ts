@@ -71,6 +71,8 @@ export async function supabaseRequest<T>(
 }
 
 let warned = false;
+/** How long to stay on memory after "table missing" before checking Supabase again. */
+const RECHECK_MS = 60_000;
 
 /**
  * Runs `remote` against Supabase when it's configured and its tables exist,
@@ -79,12 +81,13 @@ let warned = false;
  * working.
  */
 export async function withSupabase<T>(remote: () => Promise<T>, local: () => Promise<T> | T): Promise<T> {
-  if (!isSupabaseConfigured() || supabaseState.unavailable) return local();
+  if (!isSupabaseConfigured() || isTemporarilyUnavailable()) return local();
   try {
     return await remote();
   } catch (error) {
     if (error instanceof SupabaseError && error.isMissingTable) {
       supabaseState.unavailable = true;
+      supabaseState.since = Date.now();
       if (!warned) {
         warned = true;
         console.warn('[supabase] tables not found: run supabase/migrations/0001_users_and_favorites.sql. Using in-memory storage for now.');
@@ -96,8 +99,20 @@ export async function withSupabase<T>(remote: () => Promise<T>, local: () => Pro
 }
 
 /** Exposed for tests and the health endpoint. */
-export const supabaseState = { unavailable: false };
+export const supabaseState = { unavailable: false, since: 0 };
+
+/**
+ * After a "table missing" error we use memory for a minute, then try
+ * Supabase again, so running the migration on a live deploy takes effect
+ * without a restart.
+ */
+function isTemporarilyUnavailable(now = Date.now()): boolean {
+  if (!supabaseState.unavailable) return false;
+  if (now - supabaseState.since < RECHECK_MS) return true;
+  supabaseState.unavailable = false;
+  return false;
+}
 
 export function storageMode(): 'supabase' | 'memory' {
-  return isSupabaseConfigured() && !supabaseState.unavailable ? 'supabase' : 'memory';
+  return isSupabaseConfigured() && !isTemporarilyUnavailable() ? 'supabase' : 'memory';
 }

@@ -6,6 +6,9 @@ import { mockLivePost } from '@/lib/server/mock/social';
 import { getSessionUser, unauthorized } from '@/lib/server/http';
 
 export const dynamic = 'force-dynamic';
+// Long-lived on serverless hosts (Vercel): when the platform closes the
+// stream at this limit, the client reconnects with backoff automatically.
+export const maxDuration = 300;
 
 const HEARTBEAT_MS = 15_000;
 

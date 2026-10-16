@@ -15,7 +15,7 @@ All endpoints are same-origin Route Handlers. Every content endpoint requires a 
 | 403 | `FORBIDDEN` | Cross-origin POST (Origin mismatch) |
 | 409 | `CONFLICT` | Signup with an existing email |
 | 429 | `RATE_LIMITED` | Too many login attempts (`Retry-After` header) |
-| 502 | `UPSTREAM_ERROR` | NewsAPI/TMDB failed or timed out (8 s) |
+| 502 | `UPSTREAM_ERROR` | Only when every searched source fails. A single failing NewsAPI/TMDB call falls back to demo data (`source: "mock"`) with a 15-minute cooldown |
 
 ## Content model
 

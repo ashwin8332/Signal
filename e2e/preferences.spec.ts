@@ -3,7 +3,15 @@ import { signInAsDemo, waitForFeed } from './helpers';
 
 test.describe('favorites and preferences persist', () => {
   test('favorite an item, find it in Favorites after a reload, remove and undo', async ({ page }) => {
-    await signInAsDemo(page);
+    // A fresh account: favorites belong to the account, so this test can't
+    // collide with others that use the shared demo account.
+    await page.goto('/signup');
+    await page.getByLabel('Name').fill('Fav Tester');
+    await page.getByLabel('Email').fill(`fav-${Date.now()}-${Math.round(Math.random() * 1e6)}@example.com`);
+    await page.getByLabel('Password', { exact: true }).fill('password123');
+    await page.getByRole('button', { name: 'Create account' }).click();
+    await expect(page).toHaveURL(/\/settings$/, { timeout: 20_000 });
+    await page.goto('/dashboard');
     await waitForFeed(page);
     const title = (await page.getByTestId('content-card').first().locator('h2').textContent())!;
     await page.getByRole('button', { name: `Save “${title}” to favorites` }).click();
@@ -33,7 +41,7 @@ test.describe('favorites and preferences persist', () => {
 
     // Check the class is already right in the very first paint after reload.
     await page.reload({ waitUntil: 'commit' });
-    await page.waitForSelector('html');
+    await page.waitForSelector('html', { state: 'attached' });
     const darkOnLoad = await page.evaluate(() => document.documentElement.classList.contains('dark'));
     expect(darkOnLoad).toBe(!startedDark);
   });
@@ -56,6 +64,6 @@ test.describe('favorites and preferences persist', () => {
     await page.getByRole('radio', { name: 'Emerald' }).check({ force: true });
     await page.getByRole('button', { name: 'Save changes' }).click();
     await expect(page.getByText('Profile saved')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Morning Reader, account menu' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Morning Reader\s?, account menu$/ })).toBeVisible();
   });
 });

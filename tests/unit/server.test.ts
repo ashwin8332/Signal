@@ -7,7 +7,7 @@ import { mockNewsPage, MOCK_NEWS_PER_CATEGORY } from '@/lib/server/mock/news';
 import { mockMoviesPage } from '@/lib/server/mock/movies';
 import { mockSocialPage, mockLivePost } from '@/lib/server/mock/social';
 import { getAuthSecret } from '@/lib/server/env';
-import { getMovies, getNews, matchesQuery, normalizeNewsArticle, normalizeTmdbMovie, searchContent, tmdbAuth, UpstreamError } from '@/lib/server/providers';
+import { getMovies, getNews, matchesQuery, normalizeNewsArticle, normalizeTmdbMovie, searchContent, tmdbAuth, UpstreamError, resetProviderCooldowns } from '@/lib/server/providers';
 import { makeItem } from '../fixtures';
 
 const user = { id: 'u1', name: 'Ana', email: 'ana@example.com' };
@@ -16,6 +16,7 @@ const SECRET = 'test-secret-that-is-long-enough-0123456789';
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
+  resetProviderCooldowns();
 });
 
 describe('session tokens', () => {
@@ -198,10 +199,24 @@ describe('real provider adapters', () => {
     expect(tmdbAuth()).toBeNull();
   });
 
-  it('raises UpstreamError on upstream failure (no silent mock fallback)', async () => {
+  it('falls back to labelled demo data on upstream failure, then cools down instead of retrying', async () => {
     vi.stubEnv('TMDB_API_READ_TOKEN', 'token');
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 503 })));
-    await expect(getMovies(['drama'], 1, 9)).rejects.toBeInstanceOf(UpstreamError);
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const fetchMock = vi.fn(async () => new Response('{"status":"error","code":"rateLimited"}', { status: 429 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const first = await getMovies(['drama'], 1, 9);
+    expect(first.source).toBe('mock');
+    expect(first.items.length).toBeGreaterThan(0);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // Within the cooldown the API is not called again.
+    await getMovies(['drama'], 2, 9);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not swallow programming errors as upstream failures', () => {
+    expect(new UpstreamError('TMDB', 'x')).toBeInstanceOf(Error);
   });
 });
 
@@ -213,13 +228,14 @@ describe('search', () => {
     expect(matchesQuery(item, 'quantum football')).toBe(false);
   });
 
-  it('reports a failing source in failedSources while returning the rest', async () => {
+  it('keeps searching every source when one upstream is down (that source answers from demo data)', async () => {
     vi.stubEnv('NEWS_API_KEY', 'key');
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.stubGlobal('fetch', vi.fn(async () => new Response('down', { status: 500 })));
     const result = await searchContent('ai', 'all', 1);
-    expect(result.failedSources).toEqual(['news']);
+    expect(result.failedSources).toEqual([]);
     expect(result.allFailed).toBe(false);
-    expect(result.items.length).toBeGreaterThan(0);
-    expect(result.items.every((item) => item.type !== 'news')).toBe(true);
+    expect(result.source).toBe('mock');
+    expect(new Set(result.items.map((item) => item.type))).toEqual(new Set(['news', 'movie', 'social']));
   });
 });

@@ -25,3 +25,13 @@ Add keys to `src/i18n/locales/en.ts` first; `es.ts`/`fr.ts` must match (TypeScri
 
 ## Git
 Small commits with clear messages. Never commit `.env.local`, `coverage/`, `playwright-report/`, `test-results/`.
+
+## Dependencies (important)
+npm has a bug with optional native packages (Rolldown for Vitest, `@next/swc-*`, lightningcss): adding a package with `npm install <pkg>` can **remove the platform bindings from `package-lock.json`**, breaking Vitest locally and builds/CI on other OSes. After adding a dependency, check:
+
+```bash
+grep -c '"node_modules/@rolldown/binding-' package-lock.json   # expect > 0
+grep -c '"node_modules/@next/swc-' package-lock.json            # expect > 0
+```
+
+If either is 0, run `rm -rf node_modules package-lock.json && npm install`.

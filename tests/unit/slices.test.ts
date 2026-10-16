@@ -13,7 +13,7 @@ import preferences, {
 import favorites, { removeFavorite, restoreFavorite, toggleFavorite, MAX_FAVORITES } from '@/features/favorites/favoritesSlice';
 import feed, { flushPending, moveItem, receiveLiveItem, resetOrder } from '@/features/feed/feedSlice';
 import auth, { login, sessionExpired } from '@/features/auth/authSlice';
-import { hydrateFromStorage } from '@/store/hydrate';
+import { hydrateDevice, hydrateFromStorage } from '@/store/hydrate';
 import { makeItem } from '../fixtures';
 
 const init = { type: '@@init' };
@@ -57,9 +57,10 @@ describe('preferences slice', () => {
     expect(undone.categories).toEqual(['health']);
   });
 
-  it('merges hydrated preferences', () => {
-    const state = preferences(undefined, hydrateFromStorage({ preferences: { ...defaultPreferences, theme: 'dark' } }));
-    expect(state.theme).toBe('dark');
+  it('merges a user’s interests and the device’s theme/language separately', () => {
+    let state = preferences(undefined, hydrateDevice({ theme: 'dark', language: 'de' }));
+    state = preferences(state, hydrateFromStorage({ preferences: { categories: ['health'], genres: [], hashtags: ['ai'], liveUpdates: false } }));
+    expect(state).toMatchObject({ theme: 'dark', language: 'de', categories: ['health'], liveUpdates: false });
   });
 });
 

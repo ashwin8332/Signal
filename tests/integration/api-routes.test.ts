@@ -15,6 +15,7 @@ import { buildCsp } from '@/proxy';
 import { createSessionToken } from '@/lib/server/session';
 import { DEMO_USER, resetUserStore } from '@/lib/server/users';
 import { loginLimiter } from '@/lib/server/rateLimit';
+import { resetProviderCooldowns } from '@/lib/server/providers';
 import { SESSION_COOKIE } from '@/lib/constants';
 
 const ORIGIN = 'http://localhost:3000';
@@ -31,6 +32,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   resetUserStore();
   loginLimiter.clear();
+  resetProviderCooldowns();
 });
 
 function authedGet(path: string) {
@@ -68,12 +70,15 @@ describe('content routes', () => {
     expect((await getSearch(authedGet('/api/search?q='))).status).toBe(400);
   });
 
-  it('return 502 when a configured upstream fails', async () => {
+  it('serve labelled demo data when a configured upstream fails (e.g. rate-limited)', async () => {
     vi.stubEnv('TMDB_API_READ_TOKEN', 'token');
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 500 })));
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 429 })));
     const response = await getRecommendations(authedGet('/api/recommendations?genres=drama'));
-    expect(response.status).toBe(502);
-    expect((await response.json()).error.code).toBe('UPSTREAM_ERROR');
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.source).toBe('mock');
+    expect(body.items.length).toBeGreaterThan(0);
   });
 
   it('rank trending items and limit them', async () => {

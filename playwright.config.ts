@@ -12,7 +12,7 @@ export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
   // Each worker launches a browser against one Next server; a few is plenty.
-  workers: process.env.CI ? 2 : 3,
+  workers: 2,
   expect: { timeout: 10_000 },
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
@@ -36,6 +36,9 @@ export default defineConfig({
       NEWS_API_KEY: '',
       TMDB_API_READ_TOKEN: '',
       TMDB_API_KEY: '',
+      // Never let test sign-ups and favorites reach the real database.
+      SUPABASE_URL: '',
+      SUPABASE_SECRET_KEY: '',
       LIVE_FEED_INTERVAL_MS: '3000',
     },
   },
