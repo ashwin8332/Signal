@@ -59,8 +59,10 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     {
-      // Pages only: skip API routes, static assets and prefetches.
-      source: '/((?!api|_next/static|_next/image|favicon.ico|icon.svg|robots.txt).*)',
+      // Pages only: skip API routes, Next internals, prefetches, and any file in
+      // /public (a path with an extension). Without that last part, public
+      // images were redirected to /login, which broke the image optimizer.
+      source: '/((?!api|_next/static|_next/image|.*\\.[a-zA-Z0-9]+$).*)',
       missing: [
         { type: 'header', key: 'next-router-prefetch' },
         { type: 'header', key: 'purpose', value: 'prefetch' },

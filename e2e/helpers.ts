@@ -18,3 +18,8 @@ export async function waitForFeed(page: Page) {
 export function cardTitles(page: Page) {
   return page.getByTestId('content-card').locator('h2').allTextContents();
 }
+
+/** Waits until no CSS/Web Animations are mid-flight (e.g. before an axe contrast scan). */
+export async function waitForAnimationsToSettle(page: Page) {
+  await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== 'running' || animation.effect?.getTiming().iterations === Infinity));
+}

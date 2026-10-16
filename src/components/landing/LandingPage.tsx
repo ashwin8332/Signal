@@ -37,13 +37,15 @@ import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { LanguageSelect } from '@/components/layout/LanguageSelect';
 import { cn } from '@/lib/cn';
 
-/** Fade-and-rise as sections scroll into view (opacity only under reduced motion). */
+/** Fade-and-rise as sections scroll into view; shown immediately under reduced motion. */
 function Reveal({ children, delay = 0, className }: { children: ReactNode; delay?: number; className?: string }) {
   const reduce = useReducedMotion();
   return (
     <motion.div
       className={className}
-      initial={{ opacity: 0, y: reduce ? 0 : 24 }}
+      // `false` renders the final state straight away: no motion, and no
+      // half-transparent text for screen magnifiers or contrast checkers.
+      initial={reduce ? false : { opacity: 0, y: 24 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-60px' }}
       transition={{ duration: 0.5, delay, ease: [0.16, 1, 0.3, 1] }}
@@ -138,7 +140,9 @@ export function LandingPage() {
         {/* ── Hero ───────────────────────────────────────────────── */}
         <section aria-labelledby="hero-title" className="relative overflow-hidden border-b-[3px] border-ink">
           <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 py-14 md:px-8 md:py-20 lg:grid-cols-[1.1fr_1fr] lg:py-24">
-            <Reveal>
+            {/* The hero is rendered visible from the first paint (no fade-in): it's
+                the most important content and must not wait for JavaScript. */}
+            <div>
               <span className="tag bg-amber text-[#121210]">
                 <Sparkles aria-hidden="true" className="h-3.5 w-3.5" />
                 {t('landing.eyebrow')}
@@ -156,11 +160,9 @@ export function LandingPage() {
                 {demoCta}
               </div>
               <p className="mt-6 font-mono text-xs font-bold uppercase tracking-wider text-fg-muted">{t('landing.trust')}</p>
-            </Reveal>
+            </div>
 
-            <Reveal delay={0.15}>
-              <HeroPreview label={t('landing.previewLabel')} />
-            </Reveal>
+            <HeroPreview label={t('landing.previewLabel')} />
           </div>
         </section>
 
