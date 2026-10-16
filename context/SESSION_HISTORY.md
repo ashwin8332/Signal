@@ -3,7 +3,7 @@
 The full build conversation, compressed. Read this instead of the chat log. Newest iteration last.
 
 ## Brief (from the user)
-Build "Personalized Content Dashboard" for a frontend take-home (React, Next.js, TS, Redux Toolkit, APIs, tests): news (NewsAPI), recommendations (TMDB), social (mock); preferences; cards with CTAs; infinite scroll; sidebar + header with search; feed / trending / favorites; debounced search; drag-and-drop; dark mode; animations; RTK + thunks/RTK Query; localStorage; unit + integration + E2E tests; bonuses: auth, real-time, i18n. The user wants it "comprehensive, attractive, intimidating", following their playbooks (`context/playbooks/`) and the neo-brutalist reference (`context/design-reference/`).
+Build "Personalized Content Dashboard" for a frontend take-home (React, Next.js, TS, Redux Toolkit, APIs, tests): news (NewsAPI), recommendations (TMDB), social (mock); preferences; cards with CTAs; infinite scroll; sidebar + header with search; feed / trending / favorites; debounced search; drag-and-drop; dark mode; animations; RTK + thunks/RTK Query; localStorage; unit + integration + E2E tests; bonuses: auth, real-time, i18n. The user wants it "comprehensive, attractive, intimidating", following their playbooks (kept outside the repo) and the neo-brutalist reference (`context/design-reference/`).
 
 ## Standing decisions
 - Standalone repo (not the PlaceIQ project): `C:\Users\hp\OneDrive\Desktop\personalized-content-dashboard`, GitHub `ashwin8332/Signal`, branch `main`.
