@@ -1,8 +1,9 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { signInAsDemo, waitForFeed } from './helpers';
+import { signInAsDemo, waitForAnimationsToSettle, waitForFeed } from './helpers';
 
 async function expectNoSeriousViolations(page: Page) {
+  await waitForAnimationsToSettle(page);
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
   const serious = results.violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical');
   expect(
