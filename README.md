@@ -14,7 +14,6 @@ A personalized content dashboard bringing **news, film recommendations, and soci
 [Explore Repository](https://github.com/ashwin8332/Signal) · [Report a Bug](https://github.com/ashwin8332/Signal/issues) · [Request a Feature](https://github.com/ashwin8332/Signal/issues)
 
 </div>
-
 ---
 
 ## Contents
